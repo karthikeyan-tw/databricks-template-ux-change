@@ -1,8 +1,8 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: databricks-accelerator
-  title: Databricks Terraform Accelerator
+  name: testing-new-ux
+  title: Testing New UX
   description: |
     This accelerator provides Terraform modules to provision Databricks workspaces,
     compute, Unity Catalog, metastores, and security configurations with predefined
