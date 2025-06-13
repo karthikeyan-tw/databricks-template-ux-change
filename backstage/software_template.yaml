@@ -1,0 +1,142 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: databricks-accelerator
+  title: Databricks Terraform Accelerator
+  description: |
+    This accelerator provides Terraform modules to provision Databricks workspaces,
+        compute, Unity Catalog, metastores, and security configurations, designed to be
+        composed together for tailored deployments.
+  tags:
+    - databricks
+    - terraform
+    - aws
+    - oidc
+    - data-modernization
+spec:
+  owner: group:accelerator-publisher
+  type: service
+  parameters:
+    - title: Prerequisites
+      description: Before proceeding, please ensure you've completed the following.
+      required: [acknowledge, clientDeploymentName]
+      properties:
+        acknowledge:
+          type: array
+          title: Please confirm the following setup is done
+          minItems: 4
+          items:
+            type: string
+            enum:
+              - "AWS Account is created"
+              - "AWS OIDC configuration is done, and Role ARN is collected"
+              - "Databricks Account is created"
+              - "Databricks Service Principal with OAuth2 is created, and Client ID & Secret are collected"
+          uniqueItems: true
+          ui:widget: checkboxes
+        clientDeploymentName:
+          type: string
+          title: Client Deployment Name
+          description: "The unique client deployment name for this accelerator."
+        deploymentOwner:
+          title: Deployment Owner
+          type: string
+          description: Owner of the deployment
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group     
+    - $yaml: ./parameters/account_config_parameters.yaml
+    - $yaml: ./parameters/workspace_config_parameters.yaml
+    - $yaml: ./parameters/ci_cd_config_parameters.yaml
+
+  steps:
+    - id: fetch-base
+      name: Fetch Base
+      action: fetch:plain
+      input:
+        url: ../skeleton
+    - id: generate-deployment-specific-files
+      name: Generate Deployment Specific Files
+      action: fetch:template
+      input:
+        url: ../backstage/scaffolder
+        templateFileExtension: '.njk'
+        targetPath: ./
+        values:
+          # Use CI/CD parameters for environment
+          clientDeploymentName: ${{ parameters.clientDeploymentName }}
+          githubProjectSlug: ${{ parameters.repoUrl | parseRepoUrl | pick('owner') }}/${{ parameters.repoUrl | parseRepoUrl | pick('repo') }}
+          databricksAccountId: ${{ parameters.databricksAccountId }}
+          deploymentOwner: ${{ parameters.deploymentOwner }}
+          repoUrl: ${{ parameters.repoUrl }}
+          awsRegion: ${{ parameters.awsRegion }}
+          deployment_name_prefix: itoc  # Hardcode or make parameter if needed
+          
+          # Account Level Configuration (no duplicates)
+          metastore:
+            storage:
+              enabled: ${{ parameters.metastore.storage.enabled }}
+              s3_prefix: ${{ parameters.metastore.storage.s3_prefix }}
+              s3_versioning: ${{ parameters.metastore.storage.s3_versioning }}
+
+          cloud_resources:
+            credential:
+              policy: ${{ parameters.cloud_resources.credential.policy }}
+            storage: ${{ parameters.cloud_resources.storage }}
+            network: ${{ parameters.cloud_resources.network }}
+            encryption: ${{ parameters.cloud_resources.encryption }}
+
+          groups: ${{ parameters.groups }}
+
+          config:
+            number_of_azs: ${{ parameters.config.number_of_azs }}
+            single_nat_gateway: ${{ parameters.config.single_nat_gateway }}
+            enable_auto_prefix: ${{ parameters.config.enable_auto_prefix }}
+            enable_auto_suffix: ${{ parameters.config.enable_auto_suffix }}
+            create_groups: ${{ parameters.config.create_groups }}
+            network_acls:
+              private:
+                outbound: ${{ parameters.config.network_acls.private.outbound }}
+
+          tags:
+            databricks: ${{ parameters.tags.databricks }}
+            itoc_monitored: ${{ parameters.tags.itoc_monitored }}
+
+          # Workspace Level Configuration
+          workspaces: ${{ parameters.workspaces }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        allowedHosts: [ 'github.com' ]
+        repoUrl: ${{ parameters.repoUrl }}
+        repoVisibility: private
+        defaultBranch: main
+        token: ${{ secrets.USER_OAUTH_TOKEN or false }}
+        description: Databricks Terraform Accelerator
+        secrets:
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.databricksClientSecret }}
+        repoVariables:
+          DATABRICKS_HOST: ${{ parameters.databricksHost }}
+          DATABRICKS_CLIENT_ID: ${{ parameters.databricksClientId }}
+          AWS_REGION: ${{ parameters.awsRegion }}
+          AWS_ROLE_TO_ASSUME: ${{ parameters.awsOidcRoleArn }}
+          TF_BACKEND_BUCKET: ${{ parameters.tfStateBucket }}
+          TF_VAR_s3_bucket_name_main: ${{ parameters.appS3BucketName }}
+          TF_STATE_KEY: "databricks/github/${{ parameters.repoUrl | parseRepoUrl | pick('owner') }}/${{ parameters.repoUrl | parseRepoUrl | pick('repo') }}/terraform.tfstate"
+    - id: register
+      name: Register
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/backstage/catalog-info.yaml'
+  output:
+    links:
+      - title: GitHub Repository
+        icon: github
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: View in Backstage Catalog
+        icon: catalog
+        url: https://app-202129374367.us-central1.run.app/catalog/default/component/${{ parameters.clientDeploymentName }}-aws-databricks-provisioner

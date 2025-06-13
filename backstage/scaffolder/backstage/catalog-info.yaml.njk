@@ -1,0 +1,33 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.clientDeploymentName }}-aws-databricks-provisioner
+  description: This component represents a Databricks Terraform Accelerator deployment for AWS, tailored for the client deployment named ${{ values.clientDeploymentName }}.
+  tags:
+    - aws
+    - databricks
+    - terraform
+  annotations:
+    github.com/project-slug: ${{ values.githubProjectSlug }}
+spec:
+  type: service
+  lifecycle: experimental
+  owner: ${{values.deploymentOwner}}
+  system: ${{ values.clientDeploymentName }}-data-platform
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{ values.clientDeploymentName }}-data-platform
+  description: Platform to manage data workloads and analytics infra.
+  tags:
+    - aws
+    - databricks
+  links:
+    - url: https://accounts.cloud.databricks.com/?account_id={{ values.databricksAccountId }}
+      title: Databricks Account
+      icon: dashboard
+      type: admin-dashboard
+spec:
+  type: feature-set
+  owner: ${{values.deploymentOwner}}

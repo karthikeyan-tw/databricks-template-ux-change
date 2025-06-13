@@ -1,0 +1,19 @@
+.idea
+
+# Environment variables and secrets
+*/.env
+.env
+.env.local
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform state files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate.*

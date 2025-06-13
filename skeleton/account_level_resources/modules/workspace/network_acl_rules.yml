@@ -1,0 +1,48 @@
+public:
+  inbound:
+    - protocol: tcp
+      port: 1024
+      to_port: 65535
+    - protocol: udp
+      port: 1024
+      to_port: 65535
+    - protocol: icmp
+      port: 0
+      icmp_type: 0 # Echo reply
+
+  outbound:
+    - protocol: tcp
+      port: 0
+      to_port: 65535
+    - protocol: udp
+      port: 0
+      to_port: 65535
+    - protocol: icmp
+      port: 0
+      icmp_type: 8 # Echo request
+
+# Reference: https://docs.databricks.com/administration-guide/cloud-configurations/aws/customer-managed-vpc.html#subnet-level-network-acls
+private:
+  inbound:
+    - protocol: -1
+      port: 0
+    - protocol: icmp
+      port: 0
+      icmp_type: 0 # Echo reply
+
+  outbound:
+    - protocol: tcp
+      port: 443  # Databricks infrastructure, cloud data sources, and library repositories
+    - protocol: tcp
+      port: 3306 # Metastore
+    - protocol: tcp
+      port: 6666 # Private Link
+    - protocol: tcp
+      port: 2443 # Only for use with compliance security profile
+    - protocol: tcp
+      port: 8443 # Future extendability. Ensure these ports are open by January 31, 2024.
+      to_port: 8451
+    - protocol: icmp
+      port: 0
+      icmp_type: 8 # Echo request
+  

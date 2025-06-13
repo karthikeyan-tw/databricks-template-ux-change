@@ -1,0 +1,68 @@
+name: 'Databricks Terraform Deployment'
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+
+permissions:
+  id-token: write # Required for OIDC to AWS
+  contents: read  # Required to checkout the code
+  pull-requests: write # Optional: for adding plan comments to PRs (if you add that feature)
+
+jobs:
+  deploy:
+    name: 'Deploy with Terraform'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+      TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_CLIENT_ID: ${{ vars.DATABRICKS_CLIENT_ID }}
+      DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+
+      TERRAFORM_WORKSPACE: "default" # Your target Terraform workspace. Consider making this a var too if needed.
+
+    # 'steps:' block must be at the same indentation level as 'name:', 'runs-on:', 'env:'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # AWS_ROLE_TO_ASSUME is defined as a GitHub Repository Variable set by Backstage
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }} # Uses the AWS_REGION from the env block above
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.0" # Updated to match required_version in _backend.tf
+          terraform_wrapper: false
+
+      - name: Terraform Init and Workspace Selection # Step name updated for clarity
+        run: |
+          # Consider making 'my-sample-project' part of a var
+          terraform init \
+            -backend-config="bucket=${{ env.TF_BACKEND_BUCKET }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -input=false # Added for non-interactive execution
+        working-directory: ./account_level_resources # Ensure this matches your directory structure
+
+      - name: Terraform apply account level resources
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' # Apply only on push to main
+        run: |
+          terraform apply -auto-approve -input=false
+        working-directory: ./account_level_resources # Ensure this matches your directory structure
+
+      - name: Terraform apply workspace level resources
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' # Apply only on push to main
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+          bash ./workspace_level_terraform_run.sh apply
+        working-directory: ./workspace_level_resources # Ensure this matches your directory structure
