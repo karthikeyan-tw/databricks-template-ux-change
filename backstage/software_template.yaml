@@ -41,20 +41,42 @@ spec:
         configurationTemplate:
           type: string
           title: Configuration Template
-          description: "Choose your deployment configuration to see details."
+          description: "Choose a deployment configuration to see its details below."
           enum: [default, alternate]
           enumNames: [
             "Default (Thoughtworks Production Setup)",
             "Alternate (Analytics Variant)"
           ]
           default: default
-          ui:widget: select
-          ui:options:
-            enumDescriptions:
-              default: |
-                **📋 Default Configuration:** Includes a complete production setup with a shared cluster (m4.large), development & demo catalogs, UCX jobs, DLT pipelines, and comprehensive security/ACLs for production workloads.
-              alternate: |
-                **🔬 Alternate Configuration:** An analytics-focused, cost-optimized setup with a larger Photon-enabled cluster (r5.large), CloudWatch monitoring, and streamlined permissions for analytics workloads.
+        
+        defaultDescription:
+          type: string
+          title: "📋 Default Configuration Details"
+          ui:widget: textarea
+          ui:disabled: true
+          default: |
+            • Workspace: thoughtworks-main with development & demo catalogs
+            • Compute: Shared Cluster (m4.large) with 60min auto-terminate
+            • SQL Warehouse: Small serverless warehouse (2-3 clusters)
+            • Storage: S3 with thoughtworks prefix, DBFS encryption
+            • Catalogs: Development & Demo with bronze/silver/gold schemas
+            • Jobs: UCX assessment job and DLT pipelines are pre-configured
+            • Security: Designed for HIPAA & PCI-DSS compliance standards
+            • Best for: Production workloads with a complete feature set.
+
+        alternateDescription:
+          type: string
+          title: "🔬 Alternate Configuration Details"
+          ui:widget: textarea
+          ui:disabled: true
+          default: |
+            • Workspace: alternate-workspace with an analytics focus
+            • Compute: Analytics Cluster (r5.large) with Photon enabled
+            • SQL Warehouse: Medium, scalable warehouse (1-4 clusters)
+            • Cost Optimization: Uses Spot instances with a 70% bid price
+            • Monitoring: CloudWatch is enabled for better observability
+            • ACLs: Streamlined permissions tailored for analytics workflows
+            • Best for: Analytics workloads where cost and performance are key.
         deploymentOwner:
           title: Deployment Owner
           type: string
@@ -191,3 +213,17 @@ spec:
       - title: View in Backstage Catalog
         icon: catalog
         url: https://app-202129374367.us-central1.run.app/catalog/default/component/${{ parameters.clientDeploymentName }}-aws-databricks-provisioner
+
+  dependencies:
+    configurationTemplate:
+      oneOf:
+        - properties:
+            configurationTemplate:
+              const: default
+          required:
+            - defaultDescription
+        - properties:
+            configurationTemplate:
+              const: alternate
+          required:
+            - alternateDescription
