@@ -48,7 +48,53 @@ spec:
             "Alternate (Analytics Variant)"
           ]
           default: default
-          ui:help: "Default: Complete Thoughtworks production setup | Alternate: Analytics-focused variant"
+          ui:help: "Select a configuration to see detailed description below"
+        configurationDescription:
+          type: string
+          title: Configuration Details
+          description: "Detailed information about the selected configuration"
+          ui:field: EntityNamePicker
+          ui:options:
+            allowArbitraryValues: false
+          oneOf:
+            - const: "default-description"
+              title: "📋 Default Configuration Includes:"
+              description: |
+                • **Workspace**: thoughtworks-main with development & demo catalogs
+                • **Compute**: Shared Cluster (m4.large) with 60min auto-terminate
+                • **SQL Warehouse**: Small serverless warehouse (2-3 clusters)
+                • **Storage**: S3 with thoughtworks prefix, DBFS encryption
+                • **Catalogs**: Development & Demo with bronze/silver/gold schemas
+                • **Groups**: data_scientists, developers, dashboard
+                • **Jobs**: UCX assessment job configured
+                • **DLT**: Bronze consumption & lookup pipelines
+                • **Security**: HIPAA & PCI-DSS compliance standards
+                • **ACLs**: Comprehensive permissions for all resources
+            - const: "alternate-description"
+              title: "🔬 Alternate Configuration Includes:"
+              description: |
+                • **Workspace**: alternate-workspace with analytics focus
+                • **Compute**: Analytics Cluster (r5.large) with Photon enabled
+                • **SQL Warehouse**: Medium warehouse (1-4 clusters)
+                • **Storage**: S3 with alternate prefix, optimized for analytics
+                • **Catalogs**: Analytics catalog with raw/processed/curated schemas
+                • **Groups**: data_scientists, analysts (simplified structure)
+                • **Monitoring**: CloudWatch enabled for better observability
+                • **Cost Optimization**: Spot instances with 70% bid price
+                • **ACLs**: Streamlined permissions for analytics workflows
+          dependencies:
+            configurationTemplate:
+              oneOf:
+                - properties:
+                    configurationTemplate:
+                      const: default
+                    configurationDescription:
+                      const: "default-description"
+                - properties:
+                    configurationTemplate:
+                      const: alternate
+                    configurationDescription:
+                      const: "alternate-description"
         deploymentOwner:
           title: Deployment Owner
           type: string
