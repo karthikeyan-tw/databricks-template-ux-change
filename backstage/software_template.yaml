@@ -5,8 +5,8 @@ metadata:
   title: Databricks Terraform Accelerator
   description: |
     This accelerator provides Terraform modules to provision Databricks workspaces,
-        compute, Unity Catalog, metastores, and security configurations, designed to be
-        composed together for tailored deployments.
+    compute, Unity Catalog, metastores, and security configurations with predefined
+    configuration templates for quick deployment.
   tags:
     - databricks
     - terraform
@@ -17,9 +17,9 @@ spec:
   owner: group:accelerator-publisher
   type: service
   parameters:
-    - title: Prerequisites
-      description: Before proceeding, please ensure you've completed the following.
-      required: [acknowledge, clientDeploymentName]
+    - title: Basic Configuration
+      description: Choose your deployment configuration and provide basic details.
+      required: [acknowledge, clientDeploymentName, configurationTemplate]
       properties:
         acknowledge:
           type: array
@@ -38,6 +38,17 @@ spec:
           type: string
           title: Client Deployment Name
           description: "The unique client deployment name for this accelerator."
+        configurationTemplate:
+          type: string
+          title: Configuration Template
+          description: "Choose a predefined configuration template."
+          enum: [default, alternate]
+          enumNames: [
+            "Default (Thoughtworks Production Setup)",
+            "Alternate (Analytics Variant)"
+          ]
+          default: default
+          ui:help: "Default: Complete Thoughtworks production setup | Alternate: Analytics-focused variant"
         deploymentOwner:
           title: Deployment Owner
           type: string
@@ -45,10 +56,68 @@ spec:
           ui:field: OwnerPicker
           ui:options:
             catalogFilter:
-              kind: Group     
-    - $yaml: ./parameters/account_config_parameters.yaml
-    - $yaml: ./parameters/workspace_config_parameters.yaml
-    - $yaml: ./parameters/ci_cd_config_parameters.yaml
+              kind: Group
+
+    - title: CI/CD and Environment Configuration
+      description: Provide your CI/CD and environment details.
+      required:
+        - repoUrl
+        - tfStateBucket
+        - awsRegion
+        - awsOidcRoleArn
+        - databricksAccountId
+        - databricksClientId
+        - databricksClientSecret
+        - databricksHost
+        - appS3BucketName
+      properties:
+        repoUrl:
+          title: Target Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+              additionalScopes:
+                github:
+                  - workflow
+            allowedHosts:
+              - github.com
+        tfStateBucket:
+          title: Terraform State S3 Bucket Name
+          type: string
+          description: "Name of the S3 bucket to store Terraform state files."
+        awsRegion:
+          title: AWS Region
+          type: string
+          description: "AWS region for deploying resources and for the S3 state bucket (e.g., us-west-1)."
+          default: us-west-1
+        awsOidcRoleArn:
+          title: AWS OIDC Role ARN
+          type: string
+          description: "ARN of the IAM Role for GitHub Actions OIDC authentication (e.g., arn:aws:iam::123456789012:role/GitHubActionsRole)."
+        databricksAccountId:
+          title: Databricks Account Id
+          type: string
+          description: "Account ID of the Databricks"
+        databricksClientId:
+          title: Databricks Client ID
+          type: string
+          description: "Client ID for the Databricks Service Principal."
+        databricksClientSecret:
+          title: Databricks Client Secret
+          type: string
+          description: "Client Secret for the Databricks Service Principal."
+          ui:field: Secret
+        databricksHost:
+          title: Databricks Host
+          type: string
+          description: "Databricks workspace URL (e.g., https://accounts.cloud.databricks.com)"
+          default: "https://accounts.cloud.databricks.com"
+        appS3BucketName:
+          title: Application S3 Bucket Name
+          type: string
+          description: "S3 bucket name for application data storage."
 
   steps:
     - id: fetch-base
@@ -56,55 +125,28 @@ spec:
       action: fetch:plain
       input:
         url: ../skeleton
-    - id: generate-deployment-specific-files
-      name: Generate Deployment Specific Files
+
+    - id: copy-selected-config
+      name: Copy Selected Configuration
+      action: fetch:plain
+      input:
+        url: ../backstage/configurations/${{ parameters.configurationTemplate }}.yaml
+        targetPath: ./config/default.yml
+
+    - id: template-minimal-files
+      name: Template Minimal Files
       action: fetch:template
       input:
         url: ../backstage/scaffolder
         templateFileExtension: '.njk'
         targetPath: ./
         values:
-          # Use CI/CD parameters for environment
           clientDeploymentName: ${{ parameters.clientDeploymentName }}
           githubProjectSlug: ${{ parameters.repoUrl | parseRepoUrl | pick('owner') }}/${{ parameters.repoUrl | parseRepoUrl | pick('repo') }}
           databricksAccountId: ${{ parameters.databricksAccountId }}
           deploymentOwner: ${{ parameters.deploymentOwner }}
-          repoUrl: ${{ parameters.repoUrl }}
           awsRegion: ${{ parameters.awsRegion }}
-          deployment_name_prefix: itoc  # Hardcode or make parameter if needed
-          
-          # Account Level Configuration (no duplicates)
-          metastore:
-            storage:
-              enabled: ${{ parameters.metastore.storage.enabled }}
-              s3_prefix: ${{ parameters.metastore.storage.s3_prefix }}
-              s3_versioning: ${{ parameters.metastore.storage.s3_versioning }}
-
-          cloud_resources:
-            credential:
-              policy: ${{ parameters.cloud_resources.credential.policy }}
-            storage: ${{ parameters.cloud_resources.storage }}
-            network: ${{ parameters.cloud_resources.network }}
-            encryption: ${{ parameters.cloud_resources.encryption }}
-
-          groups: ${{ parameters.groups }}
-
-          config:
-            number_of_azs: ${{ parameters.config.number_of_azs }}
-            single_nat_gateway: ${{ parameters.config.single_nat_gateway }}
-            enable_auto_prefix: ${{ parameters.config.enable_auto_prefix }}
-            enable_auto_suffix: ${{ parameters.config.enable_auto_suffix }}
-            create_groups: ${{ parameters.config.create_groups }}
-            network_acls:
-              private:
-                outbound: ${{ parameters.config.network_acls.private.outbound }}
-
-          tags:
-            databricks: ${{ parameters.tags.databricks }}
-            itoc_monitored: ${{ parameters.tags.itoc_monitored }}
-
-          # Workspace Level Configuration
-          workspaces: ${{ parameters.workspaces }}
+          configurationTemplate: ${{ parameters.configurationTemplate }}
 
     - id: publish
       name: Publish to GitHub
@@ -115,9 +157,9 @@ spec:
         repoVisibility: private
         defaultBranch: main
         token: ${{ secrets.USER_OAUTH_TOKEN or false }}
-        description: Databricks Terraform Accelerator
+        description: Databricks Terraform Accelerator - ${{ parameters.configurationTemplate }} configuration
         secrets:
-          DATABRICKS_CLIENT_SECRET: ${{ secrets.databricksClientSecret }}
+          DATABRICKS_CLIENT_SECRET: ${{ parameters.databricksClientSecret }}
         repoVariables:
           DATABRICKS_HOST: ${{ parameters.databricksHost }}
           DATABRICKS_CLIENT_ID: ${{ parameters.databricksClientId }}
@@ -126,12 +168,15 @@ spec:
           TF_BACKEND_BUCKET: ${{ parameters.tfStateBucket }}
           TF_VAR_s3_bucket_name_main: ${{ parameters.appS3BucketName }}
           TF_STATE_KEY: "databricks/github/${{ parameters.repoUrl | parseRepoUrl | pick('owner') }}/${{ parameters.repoUrl | parseRepoUrl | pick('repo') }}/terraform.tfstate"
+          CONFIGURATION_TEMPLATE: ${{ parameters.configurationTemplate }}
+
     - id: register
       name: Register
       action: catalog:register
       input:
         repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
         catalogInfoPath: '/backstage/catalog-info.yaml'
+
   output:
     links:
       - title: GitHub Repository

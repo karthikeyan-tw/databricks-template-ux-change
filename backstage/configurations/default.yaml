@@ -1,0 +1,220 @@
+metastore:
+  storage:
+    enabled: false
+
+cloud_resources:
+  credential:
+    policy: customer
+  storage:
+    - name: main
+      s3_prefix: thoughtworks
+  encryption:
+    - name: main
+      use_cases:
+        - MANAGED_SERVICES
+        - STORAGE
+    - name: dbfs
+      use_cases:
+        - STORAGE
+    - name: ms
+      use_cases:
+        - MANAGED_SERVICES
+groups:
+  - name: data_scientists
+    entitlements:
+      allow_cluster_create: true
+  - name: developers
+  - name: dashboard
+
+workspaces:
+  - name: thoughtworks-main
+    storage: main
+    network: main
+    encryption:
+      storage: dbfs
+    catalogs:
+      - name: development
+        prefix: false
+        storage:
+          s3_prefix: thoughtworks
+      - name: demo
+        storage:
+          s3_prefix: thoughtworks
+        visible: true
+        isolated: false
+        schemas:
+          - bronze
+          - silver
+          - gold
+    external_locations:
+      - name: development
+        storage:
+          create_bucket: true
+          s3_prefix: thoughtworks
+    clusters:
+      - name: Shared Cluster
+        spark_version: LTS
+        photon: false
+        driver_instance_type: m4.large
+        instance_type: m4.large
+        spark_conf:
+          spark.app.name: general_tasks
+        on_demand:
+          composition: DRIVER_ONLY
+          bid_price_percentage: 100
+        auto_terminate: 60
+    sql_warehouses:
+      - name: SQL Shared
+        size: Small
+        photon: true
+        serverless: true
+        min_clusters: 2
+        max_clusters: 3
+        spot_instance_policy: COST_OPTIMIZED
+        auto_terminate: 60
+    monitoring:
+      datadog: false
+      cloudwatch: false
+    acls:
+      compute_policy:
+        - name: Power User Compute
+          groups:
+            - name: developers
+              permission: CAN_USE
+      compute:
+        - name: Shared Cluster
+          groups:
+            - name: developers
+              permission: CAN_RESTART
+            - name: dashboard
+              permission: CAN_ATTACH_TO
+      sql_warehouse:
+        - name: SQL Shared
+          groups:
+            - name: data_scientists
+              permission: CAN_USE
+            - name: developers
+              permission: CAN_USE
+      job:
+        - name: "[UCX] assessment"
+          groups:
+            - name: data_scientists
+              permission: CAN_VIEW
+            - name: developers
+              permission: CAN_MANAGE_RUN
+      delta_live_tables:
+        - name: ema_demo_bronze_consumption
+          groups:
+            - name: data_scientists
+              permission: CAN_VIEW
+            - name: developers
+              permission: CAN_RUN
+        - name: ema_demo_bronze_lookup
+          groups:
+            - name: data_scientists
+              permission: CAN_VIEW
+            - name: developers
+              permission: CAN_RUN
+      secret_scope:
+        - name: dbdemos
+          groups:
+            - name: data_scientists
+              permission: MANAGE
+            - name: developers
+              permission: READ
+      token:
+        groups:
+          - name: developers
+            permission: CAN_USE
+    uc_privileges:
+      metastore:
+        groups:
+          - name: data_scientists
+            privileges:
+              - CREATE_EXTERNAL_LOCATION
+      catalog:
+        - catalog_name: tw_demo
+          groups:
+            - name: data_scientists
+              privileges:
+                - ALL_PRIVILEGES
+            - name: dashboard
+              privileges:
+                - USE_CATALOG
+                - SELECT
+      schema:
+        - catalog_name: tw_demo
+          schema_name: bronze
+          groups:
+            - name: dashboard
+              privileges:
+                - ALL_PRIVILEGES
+      table:
+        - catalog_name: tw_demo
+          schema_name: bronze
+          table_name: sample_table
+          groups:
+            - name: developers
+              privileges:
+                - SELECT
+                - MODIFY
+      view:
+        - catalog_name: tw_demo
+          schema_name: bronze
+          view_name: sample_view
+          groups:
+            - name: developers
+              privileges:
+                - SELECT
+                - APPLY_TAG
+        - catalog_name: tw_demo
+          schema_name: bronze
+          view_name: sample_view_bronze
+          groups:
+            - name: developers
+              privileges:
+                - SELECT
+                - APPLY_TAG
+            - name: dashboard
+              privileges:
+                - SELECT
+      volume:
+        - catalog_name: tw_demo
+          schema_name: bronze
+          volume_name: volume
+          groups:
+            - name: data_scientists
+              privileges:
+                - ALL_PRIVILEGES
+            - name: developers
+              privileges:
+                - WRITE_VOLUME
+                - READ_VOLUME
+      external_location:
+        - name: catalog-storage-tw-demo
+          groups:
+            - name: data_scientists
+              privileges:
+                - ALL_PRIVILEGES
+            - name: developers
+              privileges:
+                - READ_FILES
+                - WRITE_FILES
+    security_profile:
+      enabled: false
+      compliance_standards:
+        - HIPAA
+        - PCI-DSS
+config:
+  enable_auto_prefix: true
+  enable_auto_suffix: true
+  create_groups: false
+  network_acls:
+    private:
+      outbound:
+        - protocol: tcp
+          port: 80 # HTTP Connectivity
+    
+tags:
+  databricks: true
+  itoc_monitored: true 

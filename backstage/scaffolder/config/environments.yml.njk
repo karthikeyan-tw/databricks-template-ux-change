@@ -1,8 +1,9 @@
-name: tw
+name: {{ values.clientDeploymentName }}
 databricks:
-  account_id: ${{ values.databricksAccountId }}
+  account_id: {{ values.databricksAccountId }}
 aws:
-  region: ${{ values.awsRegion }}
+  region: {{ values.awsRegion }}
 templates:
   - default
-deployment_name_prefix: itoc
+deployment_name_prefix: {{ values.clientDeploymentName }}
+configuration_template: {{ values.configurationTemplate }}

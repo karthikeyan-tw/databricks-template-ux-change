@@ -1,0 +1,143 @@
+metastore:
+  storage:
+    enabled: true
+
+cloud_resources:
+  credential:
+    policy: customer
+  storage:
+    - name: main
+      s3_prefix: alternate
+  encryption:
+    - name: main
+      use_cases:
+        - MANAGED_SERVICES
+        - STORAGE
+    - name: dbfs
+      use_cases:
+        - STORAGE
+
+groups:
+  - name: data_scientists
+    entitlements:
+      allow_cluster_create: true
+  - name: analysts
+    entitlements:
+      allow_cluster_create: false
+
+workspaces:
+  - name: alternate-workspace
+    storage: main
+    network: main
+    encryption:
+      storage: dbfs
+    catalogs:
+      - name: analytics
+        prefix: false
+        storage:
+          s3_prefix: alternate
+        schemas:
+          - raw
+          - processed
+          - curated
+    external_locations:
+      - name: analytics_data
+        storage:
+          create_bucket: true
+          s3_prefix: alternate
+    clusters:
+      - name: Analytics Cluster
+        spark_version: LTS
+        photon: true
+        driver_instance_type: r5.large
+        instance_type: r5.large
+        spark_conf:
+          spark.app.name: analytics_workload
+        on_demand:
+          composition: SPOT_WITH_FALLBACK
+          bid_price_percentage: 70
+        auto_terminate: 45
+    sql_warehouses:
+      - name: Analytics Warehouse
+        size: Medium
+        photon: true
+        serverless: true
+        min_clusters: 1
+        max_clusters: 4
+        spot_instance_policy: COST_OPTIMIZED
+        auto_terminate: 45
+    monitoring:
+      datadog: false
+      cloudwatch: true
+    acls:
+      compute_policy:
+        - name: Analytics Compute Policy
+          groups:
+            - name: data_scientists
+              permission: CAN_USE
+      compute:
+        - name: Analytics Cluster
+          groups:
+            - name: data_scientists
+              permission: CAN_MANAGE
+            - name: analysts
+              permission: CAN_ATTACH_TO
+      sql_warehouse:
+        - name: Analytics Warehouse
+          groups:
+            - name: data_scientists
+              permission: CAN_USE
+            - name: analysts
+              permission: CAN_USE
+      job: []
+      delta_live_tables: []
+      secret_scope: []
+      token:
+        groups:
+          - name: data_scientists
+            permission: CAN_USE
+    uc_privileges:
+      metastore:
+        groups:
+          - name: data_scientists
+            privileges:
+              - CREATE_EXTERNAL_LOCATION
+      catalog:
+        - catalog_name: analytics
+          groups:
+            - name: data_scientists
+              privileges:
+                - ALL_PRIVILEGES
+            - name: analysts
+              privileges:
+                - USE_CATALOG
+                - SELECT
+      schema: []
+      table: []
+      view: []
+      volume: []
+      external_location:
+        - name: analytics_data
+          groups:
+            - name: data_scientists
+              privileges:
+                - ALL_PRIVILEGES
+    security_profile:
+      enabled: false
+
+config:
+  enable_auto_prefix: true
+  enable_auto_suffix: true
+  create_groups: false
+  network_acls:
+    private:
+      outbound:
+        - protocol: tcp
+          port: 80
+        - protocol: tcp
+          port: 443
+    
+tags:
+  databricks: true
+  itoc_monitored: true
+  environment: alternate 
