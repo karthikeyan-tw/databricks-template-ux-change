@@ -41,12 +41,41 @@ spec:
         configurationTemplate:
           type: string
           title: Configuration Template
+          description: |
+            Choose your deployment configuration. See details below for each option.
           enum: [default, alternate]
           enumNames: [
-            "Default (Thoughtworks Production Setup)",
-            "Alternate (Analytics Variant)"
+            "📋 Default (Thoughtworks Production Setup)",
+            "🔬 Alternate (Analytics Variant)"
           ]
           default: default
+          ui:help: |
+            **Configuration Details:**
+            
+            **📋 Default Configuration:**
+            • Workspace: thoughtworks-main with development & demo catalogs
+            • Compute: Shared Cluster (m4.large) with 60min auto-terminate
+            • SQL Warehouse: Small serverless warehouse (2-3 clusters)
+            • Storage: S3 with thoughtworks prefix, DBFS encryption
+            • Catalogs: Development & Demo with bronze/silver/gold schemas
+            • Groups: data_scientists, developers, dashboard
+            • Jobs: UCX assessment job configured
+            • DLT: Bronze consumption & lookup pipelines
+            • Security: HIPAA & PCI-DSS compliance standards
+            • ACLs: Comprehensive permissions for all resources
+            • **Best for:** Production workloads with complete feature set
+            
+            **🔬 Alternate Configuration:**
+            • Workspace: alternate-workspace with analytics focus
+            • Compute: Analytics Cluster (r5.large) with Photon enabled
+            • SQL Warehouse: Medium warehouse (1-4 clusters)
+            • Storage: S3 with alternate prefix, optimized for analytics
+            • Catalogs: Analytics catalog with raw/processed/curated schemas
+            • Groups: data_scientists, analysts (simplified structure)
+            • Monitoring: CloudWatch enabled for better observability
+            • Cost Optimization: Spot instances with 70% bid price
+            • ACLs: Streamlined permissions for analytics workflows
+            • **Best for:** Analytics workloads, cost-optimized setup
         deploymentOwner:
           title: Deployment Owner
           type: string
@@ -55,51 +84,6 @@ spec:
           ui:options:
             catalogFilter:
               kind: Group
-      
-      allOf:
-        - if:
-            properties:
-              configurationTemplate:
-                const: default
-          then:
-            properties:
-              configurationTemplate:
-                description: |
-                  📋 **Default Configuration Details:**
-                  
-                  • **Workspace**: thoughtworks-main with development & demo catalogs
-                  • **Compute**: Shared Cluster (m4.large) with 60min auto-terminate
-                  • **SQL Warehouse**: Small serverless warehouse (2-3 clusters)
-                  • **Storage**: S3 with thoughtworks prefix, DBFS encryption
-                  • **Catalogs**: Development & Demo with bronze/silver/gold schemas
-                  • **Groups**: data_scientists, developers, dashboard
-                  • **Jobs**: UCX assessment job configured
-                  • **DLT**: Bronze consumption & lookup pipelines
-                  • **Security**: HIPAA & PCI-DSS compliance standards
-                  • **ACLs**: Comprehensive permissions for all resources
-                  
-                  **Best for:** Production workloads with complete feature set
-        - if:
-            properties:
-              configurationTemplate:
-                const: alternate
-          then:
-            properties:
-              configurationTemplate:
-                description: |
-                  🔬 **Alternate Configuration Details:**
-                  
-                  • **Workspace**: alternate-workspace with analytics focus
-                  • **Compute**: Analytics Cluster (r5.large) with Photon enabled
-                  • **SQL Warehouse**: Medium warehouse (1-4 clusters)
-                  • **Storage**: S3 with alternate prefix, optimized for analytics
-                  • **Catalogs**: Analytics catalog with raw/processed/curated schemas
-                  • **Groups**: data_scientists, analysts (simplified structure)
-                  • **Monitoring**: CloudWatch enabled for better observability
-                  • **Cost Optimization**: Spot instances with 70% bid price
-                  • **ACLs**: Streamlined permissions for analytics workflows
-                  
-                  **Best for:** Analytics workloads, cost-optimized setup
 
     - title: CI/CD and Environment Configuration
       description: Provide your CI/CD and environment details.
